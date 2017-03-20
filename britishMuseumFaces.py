@@ -1,24 +1,19 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
 import urllib
 import os
-import csv
 from PIL import Image
-import argparse
 import subprocess
-import math
-from colorthief import ColorThief
-import colorsys
 
+
+# Function defined for resize and crop of an image
 def resize_and_crop(img_path, modified_path, size, crop_type='top'):
     """
     Resize and crop an image to fit the specified size.
     args:
         img_path: path for the image to resize.
         modified_path: path to store the modified image.
-        size: `(width, height)` tuple.
-        crop_type: can be 'top', 'middle' or 'bottom', depending on this
-            value, the image will cropped getting the 'top/left', 'midle' or
-            'bottom/rigth' of the image to fit the size.
+        size: (width, height) tuple. Eg (300,300)
+        crop_type: can be 'top', 'middle' or 'bottom'
     raises:
         Exception: if can not open the file in img_path of there is problems
             to save the image.
@@ -29,7 +24,7 @@ def resize_and_crop(img_path, modified_path, size, crop_type='top'):
     # Get current and desired ratio for the images
     img_ratio = img.size[0] / float(img.size[1])
     ratio = size[0] / float(size[1])
-    #The image is scaled/cropped vertically or horizontally depending on the ratio
+    # The image is scaled/cropped vertically or horizontally depending on the ratio
     if ratio > img_ratio:
         img = img.resize((size[0], size[0] * img.size[1] / img.size[0]),
                 Image.ANTIALIAS)
@@ -41,12 +36,12 @@ def resize_and_crop(img_path, modified_path, size, crop_type='top'):
         elif crop_type == 'bottom':
             box = (0, img.size[1] - size[1], img.size[0], img.size[1])
         else :
-            raise ValueError('ERROR: invalid value for crop_type')
+            raise ValueError('Error detected: That option is not valid for crop type')
         img = img.crop(box)
     elif ratio < img_ratio:
         img = img.resize((size[1] * img.size[0] / img.size[1], size[1]),
                 Image.ANTIALIAS)
-        # Crop in the top, middle or bottom
+        # Switch for where to crops
         if crop_type == 'top':
             box = (0, 0, size[0], img.size[1])
         elif crop_type == 'middle':
@@ -54,19 +49,20 @@ def resize_and_crop(img_path, modified_path, size, crop_type='top'):
         elif crop_type == 'bottom':
             box = (img.size[0] - size[0], 0, img.size[0], img.size[1])
         else :
-            raise ValueError('ERROR: invalid value for crop_type')
+            raise ValueError('Error detected: That option is not valid for crop type')
         img = img.crop(box)
     else :
         img = img.resize((size[0], size[1]),
                 Image.ANTIALIAS)
-        # If the scale is the same, we do not need to crop
     img.save(modified_path)
 
+# Makde sure you are in correct directory
 os.chdir('/Users/danielpett/githubProjects/scripts/')
 
+# Set up your sparql endpoint
 sparql = SPARQLWrapper("http://collection.britishmuseum.org/sparql")
 
-
+# Set your query
 sparql.setQuery("""PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX crm: <http://erlangen-crm.org/current/>
 PREFIX fts: <http://www.ontotext.com/owlim/fts#>
@@ -78,11 +74,16 @@ WHERE {
   ?object_type skos:prefLabel "bust" .
   ?object bmo:PX_has_main_representation ?image .
 } LIMIT 160""")
+
+# Return the JSON triples
 sparql.setReturnFormat(JSON)
 results = sparql.query().convert()
 
+# Open the file for writing urls (this is for image magick)
 listImages = open('files.txt', 'w')
 
+
+# Iterate over the results
 for result in results["results"]["bindings"]:
     print result
     image = result["image"]["value"]
@@ -94,6 +95,7 @@ for result in results["results"]["bindings"]:
         urllib.urlretrieve(image, path)
         print "Image " + os.path.basename(image) + " downloaded"
 
+# Iterate through files and crop as required
 for file in os.listdir('bmimages'):
     # Make sure file is not a hidden one etc
     if not file.startswith('.') and os.path.isfile(os.path.join('bmimages', file)):
@@ -108,6 +110,7 @@ for file in os.listdir('bmimages'):
         except:
             pass
 
+# Create the montage if files.txt exists with a try catch block
 if os.path.isfile('files.txt'):
     print ("File exists")
     try:

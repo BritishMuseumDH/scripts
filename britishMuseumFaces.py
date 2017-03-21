@@ -5,7 +5,16 @@ from PIL import Image
 import subprocess
 import cv2
 
+# Change this to your script path
 basePath = '/Users/danielpett/githubProjects/scripts'
+# You will need to download 
+
+if not os.path.exists(os.path.join(basePath, 'bmimages')):
+    os.makedirs(os.path.join(basePath, 'bmimages'))
+if not os.path.exists(os.path.join(basePath, 'bmimagesResized')):
+    os.makedirs(os.path.join(basePath, 'bmimagesResized'))
+if not os.path.exists(os.path.join(basePath, 'montages')):
+    os.makedirs(os.path.join(basePath, 'montages'))
 
 # Function defined for resize and crop of an image
 def resize_and_crop(img_path, modified_path, size, crop_type='top'):
@@ -152,7 +161,7 @@ def create_montage( file, path ):
             # This will produce multiple tiles for large results
             # Make sure you are in correct directory
             os.chdir(path)
-            subprocess.call("montage @filesText.txt -border 0 -geometry 660x -tile 10x8 montages/bmPortraitBusts.jpg", shell=True)
+            subprocess.call("montage @" + file + " -border 0 -geometry 660x -tile 10x8 montages/bmPortraitBusts.jpg", shell=True)
         except:
             print "Montage generation failed"
 

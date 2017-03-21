@@ -7,7 +7,7 @@ import cv2
 
 # Change this to your script path
 basePath = '/Users/danielpett/githubProjects/scripts'
-# You will need to download 
+# You will need to download
 
 if not os.path.exists(os.path.join(basePath, 'bmimages')):
     os.makedirs(os.path.join(basePath, 'bmimages'))
@@ -15,6 +15,8 @@ if not os.path.exists(os.path.join(basePath, 'bmimagesResized')):
     os.makedirs(os.path.join(basePath, 'bmimagesResized'))
 if not os.path.exists(os.path.join(basePath, 'montages')):
     os.makedirs(os.path.join(basePath, 'montages'))
+if not os.path.exists(os.path.join(basePath, 'facesDetected')):
+    os.makedirs(os.path.join(basePath, 'facesDetected'))
 
 # Function defined for resize and crop of an image
 def resize_and_crop(img_path, modified_path, size, crop_type='top'):

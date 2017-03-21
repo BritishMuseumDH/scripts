@@ -5,7 +5,7 @@ from PIL import Image
 import subprocess
 import cv2
 
-basePath = '/Users/danielpett/githubProjects/'
+basePath = '/Users/danielpett/githubProjects/scripts'
 
 # Function defined for resize and crop of an image
 def resize_and_crop(img_path, modified_path, size, crop_type='top'):
@@ -119,7 +119,7 @@ faceCascade = cv2.CascadeClassifier(cascPath)
 
 for file in os.listdir('bmimages'):
     if not file.startswith('.'):
-        image = cv2.imread(os.path.join(basePath, 'scripts/bmimages', file))
+        image = cv2.imread(os.path.join(basePath, 'bmimages', file))
 
 
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -143,15 +143,17 @@ for file in os.listdir('bmimages'):
                     cv2.imwrite(filename, image)
 
 
+def create_montage( file, path ):
+    # Create the montage if files.txt exists with a try catch block
+    if os.path.isfile(file):
+        print "File exists"
+        try:
+            # Make sure you are in correct directory
+            # This will produce multiple tiles for large results
+            # Make sure you are in correct directory
+            os.chdir(path)
+            subprocess.call("montage @filesText.txt -border 0 -geometry 660x -tile 10x8 montages/bmPortraitBusts.jpg", shell=True)
+        except:
+            print "Montage generation failed"
 
-# Create the montage if files.txt exists with a try catch block
-if os.path.isfile('files.txt'):
-    print "File exists"
-    try:
-        # Make sure you are in correct directory
-        # This will produce multiple tiles for large results
-        # Make sure you are in correct directory
-        os.chdir('/Users/danielpett/githubProjects/scripts/')
-        subprocess.call("montage @files.txt -border 0 -geometry 660x -tile 10x8 bmPortraitBusts.jpg", shell=True)
-    except:
-        print "Montage generation failed"
+create_montage("files.txt", basePath)

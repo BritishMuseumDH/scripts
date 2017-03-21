@@ -3,7 +3,9 @@ import urllib
 import os
 from PIL import Image
 import subprocess
+import cv2
 
+basePath = '/Users/danielpett/githubProjects/'
 
 # Function defined for resize and crop of an image
 def resize_and_crop(img_path, modified_path, size, crop_type='top'):
@@ -56,8 +58,7 @@ def resize_and_crop(img_path, modified_path, size, crop_type='top'):
                 Image.ANTIALIAS)
     img.save(modified_path)
 
-# Makde sure you are in correct directory
-os.chdir('/Users/danielpett/githubProjects/scripts/')
+
 
 # Set up your sparql endpoint
 sparql = SPARQLWrapper("http://collection.britishmuseum.org/sparql")
@@ -73,7 +74,7 @@ WHERE {
   ?object bmo:PX_object_type ?object_type .
   ?object_type skos:prefLabel "bust" .
   ?object bmo:PX_has_main_representation ?image .
-} LIMIT 160""")
+} LIMIT 100""")
 
 # Return the JSON triples
 sparql.setReturnFormat(JSON)
@@ -85,22 +86,23 @@ listImages = open('files.txt', 'w')
 
 # Iterate over the results
 for result in results["results"]["bindings"]:
-    print result
     image = result["image"]["value"]
     if os.path.isfile(os.path.join('bmimages', os.path.basename(image))):
-        listImages.write(os.path.join('bmimagesResized', os.path.basename(image)) + "\n")
         print "File already exists"
     else:
         path = os.path.join('bmimages', os.path.basename(image))
         urllib.urlretrieve(image, path)
         print "Image " + os.path.basename(image) + " downloaded"
 
+for file in os.listdir('bmimages'):
+    if not file.startswith('.'):
+        listImages.write(os.path.join('bmimagesResized', os.path.basename(file)) + "\n")
+
 # Iterate through files and crop as required
 for file in os.listdir('bmimages'):
     # Make sure file is not a hidden one etc
     if not file.startswith('.') and os.path.isfile(os.path.join('bmimages', file)):
         # Open the file checking if it is valid or not. It fails otherwise :-(
-        print os.path.join('bmimages', file)
         try:
             if not os.path.exists(os.path.join('bmimagesResized', file)):
                 resize_and_crop(os.path.join('bmimages', file), os.path.join('bmimagesResized', file), (300, 300))
@@ -110,11 +112,46 @@ for file in os.listdir('bmimages'):
         except:
             pass
 
+cascPath = "opencv/haarcascade_frontalface_default.xml"
+
+# Create the haar cascade
+faceCascade = cv2.CascadeClassifier(cascPath)
+
+for file in os.listdir('bmimages'):
+    if not file.startswith('.'):
+        image = cv2.imread(os.path.join(basePath, 'scripts/bmimages', file))
+
+
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        faces = faceCascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(150, 150),
+            flags=cv2.CASCADE_SCALE_IMAGE
+        )
+
+        left = 10
+        right = 10
+        top = 10
+        bottom = 10
+        if(len(faces) > 0):
+            for (x, y, w, h) in faces:
+                image  = image[y-top:y+h+bottom, x-left:x+w+right]
+                filename = "facesDetected/cropped_{1}_{0}".format(str(file),str(x))
+                if not os.path.exists(filename):
+                    cv2.imwrite(filename, image)
+
+
+
 # Create the montage if files.txt exists with a try catch block
 if os.path.isfile('files.txt'):
-    print ("File exists")
+    print "File exists"
     try:
+        # Make sure you are in correct directory
         # This will produce multiple tiles for large results
+        # Make sure you are in correct directory
+        os.chdir('/Users/danielpett/githubProjects/scripts/')
         subprocess.call("montage @files.txt -border 0 -geometry 660x -tile 10x8 bmPortraitBusts.jpg", shell=True)
     except:
         print "Montage generation failed"

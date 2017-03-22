@@ -1,0 +1,7 @@
+SPARQLWrapper
+urllib
+os
+PIL
+subprocess
+cv2
+argparse

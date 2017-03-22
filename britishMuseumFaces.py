@@ -1,15 +1,35 @@
+#!/usr/bin/env python
+## Retrieve images from British Museum Research Space and perform montage and facial recognition
+## Daniel Pett 21/3/2017
+## British Museum content is under a CC-BY-SA-NC license
+__author__ = 'portableant'
+__license__ = 'CC-BY'
+## Tested on Python 2.7.13
+## You will need to download the opencv file haarcascade_frontalface_default.xml for the facial bit to work and place
+## this in config folder
+
 from SPARQLWrapper import SPARQLWrapper, JSON
 import urllib
 import os
 from PIL import Image
 import subprocess
 import cv2
-import stat
+import argparse
+import time
+
+parser = argparse.ArgumentParser(description='A script for retrieving images from British Museum Research Space and '
+                                             'perform montage and facial recognition')
+
+parser.add_argument('-p', '--path', help='The path in which to run this script', required=True)
+# An example would be: --path '/Users/danielpett/githubProjects/scripts/'
+
+# Parse arguments
+args = parser.parse_args()
 
 # Change this to your script path
-basePath = '/Users/danielpett/githubProjects/scripts'
-# You will need to download the opencv file haarcascade_frontalface_default.xml for the facial bit to work
+basePath = args.path
 
+# Make the base directories
 if not os.path.exists(os.path.join(basePath, 'bmimages')):
     os.makedirs(os.path.join(basePath, 'bmimages'))
 if not os.path.exists(os.path.join(basePath, 'bmimagesResized')):
@@ -20,8 +40,15 @@ if not os.path.exists(os.path.join(basePath, 'facesDetected')):
     os.makedirs(os.path.join(basePath, 'facesDetected'))
 if not os.path.exists(os.path.join(basePath, 'config')):
     os.makedirs(os.path.join(basePath, 'config'))
+if not os.path.exists(os.path.join(basePath, 'opencv')):
+    os.makedirs(os.path.join(basePath, 'opencv'))
 
 def make_executable(path):
+    """
+    Make the file executable
+    :param path:
+    :return:
+    """
     mode = os.stat(path).st_mode
     mode |= (mode & 0o444) >> 2    # copy R bits to X
     os.chmod(path, mode)
@@ -100,7 +127,7 @@ sparql.setReturnFormat(JSON)
 results = sparql.query().convert()
 
 # Open the file for writing urls (this is for image magick)
-listImages = open('config/files.txt', 'w')
+listImages = open('files.txt', 'w')
 
 
 # Iterate over the results
@@ -117,8 +144,6 @@ for file in os.listdir('bmimages'):
     if not file.startswith('.'):
         listImages.write(os.path.join('bmimagesResized', os.path.basename(file)) + "\n")
 
-make_executable("config/files.txt")
-
 # Iterate through files and crop as required
 for file in os.listdir('bmimages'):
     # Make sure file is not a hidden one etc
@@ -134,15 +159,19 @@ for file in os.listdir('bmimages'):
             pass
 
 cascPath = "opencv/haarcascade_frontalface_default.xml"
+# Check you have this file, if not get it
+if not os.path.isfile(cascPath):
+    haar = "https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml"
+    urllib.urlretrieve(haar, os.path.join("opencv", os.path.basename(haar)))
 
 # Create the haar cascade
 faceCascade = cv2.CascadeClassifier(cascPath)
-
+start = time.time()
 for file in os.listdir('bmimages'):
     if not file.startswith('.'):
+        start = time.time()
         print os.path.join(basePath, 'bmimages', file)
         image = cv2.imread(os.path.join(basePath, 'bmimages', file))
-
 
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         faces = faceCascade.detectMultiScale(
@@ -165,6 +194,9 @@ for file in os.listdir('bmimages'):
                     cv2.imwrite(filename, image)
 
 
+end = time.time()
+print(end - start)
+
 # Iterate through files and crop as required
 for file in os.listdir('facesDetected'):
     # Make sure file is not a hidden one etc
@@ -179,17 +211,24 @@ for file in os.listdir('facesDetected'):
         except:
             pass
 
-def create_montage( file, path ):
-    # Create the montage if file exists with a try catch block
+def create_montage( file ):
+    """
+    Create the montage if file exists with a try catch block
+    :param file:
+    :return:
+    """
     if os.path.isfile(file):
         print "File exists"
         try:
             # Make sure you are in correct directory
             # This will produce multiple tiles for large results
             # Make sure you are in correct directory
+            make_executable(file)
             subprocess.call("montage -border 0 -geometry 660x -tile 10x8 @" + file + " montages/bmPortraitBusts.jpg", shell=True)
+            # This call makes a montage of the faces detected
             subprocess.call("montage -border 0 -geometry 660x -tile 10x8 facesDetected/* montages/bmPortraitBustsFaces.jpg", shell=True)
         except:
-            print "Montage generation failed"
+            # The process failed
+            raise ValueError("Montage generation failed")
 
-create_montage("files.txt", os.path.join(basePath, "config"))
+create_montage("files.txt")

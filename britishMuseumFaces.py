@@ -4,10 +4,11 @@ import os
 from PIL import Image
 import subprocess
 import cv2
+import stat
 
 # Change this to your script path
 basePath = '/Users/danielpett/githubProjects/scripts'
-# You will need to download
+# You will need to download the opencv file haarcascade_frontalface_default.xml for the facial bit to work
 
 if not os.path.exists(os.path.join(basePath, 'bmimages')):
     os.makedirs(os.path.join(basePath, 'bmimages'))
@@ -17,6 +18,13 @@ if not os.path.exists(os.path.join(basePath, 'montages')):
     os.makedirs(os.path.join(basePath, 'montages'))
 if not os.path.exists(os.path.join(basePath, 'facesDetected')):
     os.makedirs(os.path.join(basePath, 'facesDetected'))
+if not os.path.exists(os.path.join(basePath, 'config')):
+    os.makedirs(os.path.join(basePath, 'config'))
+
+def make_executable(path):
+    mode = os.stat(path).st_mode
+    mode |= (mode & 0o444) >> 2    # copy R bits to X
+    os.chmod(path, mode)
 
 # Function defined for resize and crop of an image
 def resize_and_crop(img_path, modified_path, size, crop_type='top'):
@@ -92,7 +100,7 @@ sparql.setReturnFormat(JSON)
 results = sparql.query().convert()
 
 # Open the file for writing urls (this is for image magick)
-listImages = open('files.txt', 'w')
+listImages = open('config/files.txt', 'w')
 
 
 # Iterate over the results
@@ -108,6 +116,8 @@ for result in results["results"]["bindings"]:
 for file in os.listdir('bmimages'):
     if not file.startswith('.'):
         listImages.write(os.path.join('bmimagesResized', os.path.basename(file)) + "\n")
+
+make_executable("config/files.txt")
 
 # Iterate through files and crop as required
 for file in os.listdir('bmimages'):
@@ -130,6 +140,7 @@ faceCascade = cv2.CascadeClassifier(cascPath)
 
 for file in os.listdir('bmimages'):
     if not file.startswith('.'):
+        print os.path.join(basePath, 'bmimages', file)
         image = cv2.imread(os.path.join(basePath, 'bmimages', file))
 
 
@@ -154,17 +165,31 @@ for file in os.listdir('bmimages'):
                     cv2.imwrite(filename, image)
 
 
+# Iterate through files and crop as required
+for file in os.listdir('facesDetected'):
+    # Make sure file is not a hidden one etc
+    if not file.startswith('.') and os.path.isfile(os.path.join('facesDetected', file)):
+        # Open the file checking if it is valid or not. It fails otherwise :-(
+        try:
+            if not os.path.exists(os.path.join('facesDetected', file)):
+                resize_and_crop(os.path.join('facesDetected', file), os.path.join('facesDetected', file), (300, 300))
+                print file + " resized"
+            else:
+                print "Resized file exists"
+        except:
+            pass
+
 def create_montage( file, path ):
-    # Create the montage if files.txt exists with a try catch block
+    # Create the montage if file exists with a try catch block
     if os.path.isfile(file):
         print "File exists"
         try:
             # Make sure you are in correct directory
             # This will produce multiple tiles for large results
             # Make sure you are in correct directory
-            os.chdir(path)
-            subprocess.call("montage @" + file + " -border 0 -geometry 660x -tile 10x8 montages/bmPortraitBusts.jpg", shell=True)
+            subprocess.call("montage -border 0 -geometry 660x -tile 10x8 @" + file + " montages/bmPortraitBusts.jpg", shell=True)
+            subprocess.call("montage -border 0 -geometry 660x -tile 10x8 facesDetected/* montages/bmPortraitBustsFaces.jpg", shell=True)
         except:
             print "Montage generation failed"
 
-create_montage("files.txt", basePath)
+create_montage("files.txt", os.path.join(basePath, "config"))
